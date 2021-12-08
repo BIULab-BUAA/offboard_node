@@ -60,7 +60,7 @@ int main(int argc, char **argv)
         ros::spinOnce();
         rate.sleep();
     }
- 
+    ROS_INFO("CONNECTED.");
     geometry_msgs::PoseStamped pose;//姿态控制
     pose.pose.position.x = 0;
     pose.pose.position.y = 0;
@@ -68,10 +68,10 @@ int main(int argc, char **argv)
     
     geometry_msgs::TwistStamped vel;//速度控制
  
-    for(int i = 100; ros::ok() && i > 0; --i){
+    for(int i = 10; ros::ok() && i > 0; --i){
         local_pos_pub.publish(pose);
         ros::spinOnce();
-        rate.sleep();
+        //rate.sleep();
     }
  
     mavros_msgs::SetMode offb_set_mode;
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 			break;
 		}
 		
-        if( current_state.mode != "OFFBOARD" && (ros::Time::now() - last_request > ros::Duration(5.0)))
+        if( current_state.mode != "OFFBOARD")
         {
             if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
             {
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
             }
            	last_request = ros::Time::now();
        	}
-        else if( !current_state.armed && (ros::Time::now() - last_request > ros::Duration(5.0)))
+        else if( !current_state.armed )
         {
             if( arming_client.call(arm_cmd) && arm_cmd.response.success)
             {
