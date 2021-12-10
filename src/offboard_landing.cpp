@@ -10,6 +10,8 @@
 
 mavros_msgs::State current_state;
 int land_mode = 0;
+int start_mode =0;
+geometry_msgs::Pose start_pose;
 void state_cb(const mavros_msgs::State::ConstPtr& msg){
     current_state = *msg;
 }
@@ -19,6 +21,11 @@ void joyCallBack( const std_msgs::String::ConstPtr& str){
 	if(str->data == "d"||str->data=="D"){
 		land_mode = 1;
 		}
+    else if(str->data == "a"||str->data=="A")
+    {
+        start_mode = 1;
+        //start_pose = local_position.pose;
+    }
 	std::cout<<"str.data : "<< str->data <<std::endl;
 	}
 
@@ -51,7 +58,7 @@ int main(int argc, char **argv)
 	
 	ros::Subscriber joy_sub = nh.subscribe("/keys",10,&joyCallBack);	// subscribe
     
-    double max_height = 1.0;
+    double max_height = 2.0;
     
  
     ros::Rate rate(20.0);
@@ -62,8 +69,10 @@ int main(int argc, char **argv)
     }
     ROS_INFO("CONNECTED.");
     geometry_msgs::PoseStamped pose;//姿态控制
-    pose.pose.position.x = 0;
-    pose.pose.position.y = 0;
+    //pose.pose.position.x = 0;
+    //pose.pose.position.y = 0;
+    pose.pose.position.x = local_position.pose.position.x;
+    pose.pose.position.y = local_position.pose.position.y;
     pose.pose.position.z = max_height;
     
     geometry_msgs::TwistStamped vel;//速度控制
@@ -92,7 +101,7 @@ int main(int argc, char **argv)
 			ROS_INFO("keyboard interrupt");
 			break;
 		}
-		
+
         if( current_state.mode != "OFFBOARD")
         {
             if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
@@ -103,8 +112,18 @@ int main(int argc, char **argv)
        	}
         else if( !current_state.armed )
         {
-            if( arming_client.call(arm_cmd) && arm_cmd.response.success)
+            if(start_mode==0)
             {
+                ROS_INFO("wait for start,press a");
+                ros::spinOnce();
+                rate.sleep();
+                continue;
+            }
+            else if( arming_client.call(arm_cmd) && arm_cmd.response.success)
+            {
+                pose.pose.position.x = local_position.pose.position.x;
+                pose.pose.position.y = local_position.pose.position.y;
+                pose.pose.position.z = max_height;
                 ROS_INFO("Vehicle armed");
             }
             last_request = ros::Time::now();
@@ -121,13 +140,12 @@ int main(int argc, char **argv)
             ROS_INFO("tracking landing start");
             break;
         }
-		ROS_INFO("local_pos: x %f, z %f",local_position.pose.position.x,local_position.pose.position.z);
+		//ROS_INFO("local_pos: x %f, z %f",local_position.pose.position.x,local_position.pose.position.z);
         local_pos_pub.publish(pose);
  
         ros::spinOnce();
         rate.sleep();
     }
-    
    
     
     offb_set_mode.request.custom_mode = "AUTO.LAND";
